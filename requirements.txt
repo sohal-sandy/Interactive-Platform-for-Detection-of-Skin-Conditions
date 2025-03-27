@@ -1,4 +1,10 @@
 pandas
 numpy
 seaborn
--e .
+dill
+matplotlib
+scikit-learn
+torch
+random
+torchvision
+#-e .
