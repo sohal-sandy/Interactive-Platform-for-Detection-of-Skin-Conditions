@@ -136,7 +136,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+notebook\data\archive
+notebook\data\archive.zip
 # Spyder project settings
 .spyderproject
 .spyproject
