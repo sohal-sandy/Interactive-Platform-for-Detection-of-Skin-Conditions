@@ -14,9 +14,9 @@ import torch.optim as optim
 
 @dataclass
 class DataTransformationConfig:
-    processed_data_dir: str = os.path.join("artifacts", "processed_data")
+    processed_data_dir: str = os.path.join("artifacts", "processed_data") #look into why this is necessary
     transform_config_path: str = os.path.join("artifacts", "transform_config.pkl")
-    batch_size: int = 32
+    batch_size: int = 64
     image_size: tuple = (224, 224)
 
 class DataTransformation:

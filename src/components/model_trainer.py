@@ -1,119 +1,75 @@
 import os
 import sys
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from dataclasses import dataclass
-
-from catboost import CatBoostRegressor
-from sklearn.ensemble import (
-    AdaBoostRegressor,
-    GradientBoostingRegressor,
-    RandomForestRegressor,
-)
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
-from xgboost import XGBRegressor
-
+import torchvision.models as models
 from src.exception import CustomException
 from src.logger import logging
+from src.utils import save_object, evaluate_model
+from src.components.data_transformation import DataTransformation
 
-from src.utils import save_object,evaluate_models
 
+#evaluate added
+#evaluate class moved to utils.py
 @dataclass
 class ModelTrainerConfig:
-    trained_model_file_path=os.path.join("artifacts","model.pkl")
+    trained_model_file_path: str = os.path.join("artifacts", "resnet18.pth")
+    num_epochs: int = 15
+    learning_rate: float = 0.001
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
 class ModelTrainer:
-    def __init__(self):
-        self.model_trainer_config=ModelTrainerConfig()
+    def __init__(self, num_classes=4):
+        self.config = ModelTrainerConfig()
 
+        # Load pre-trained ResNet18 and modify the last layer
+        self.model = models.resnet18(pretrained=True)
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+        self.model = self.model.to(self.config.device)
 
-    def initiate_model_trainer(self,train_array,test_array):
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
+
+    def train(self, train_loader: DataLoader, test_loader: DataLoader):
+        """Train the model using the provided DataLoader"""
         try:
-            logging.info("Split training and test input data")
-            X_train,y_train,X_test,y_test=(
-                train_array[:,:-1],
-                train_array[:,-1],
-                test_array[:,:-1],
-                test_array[:,-1]
-            )
-            models = {
-                "Random Forest": RandomForestRegressor(),
-                "Decision Tree": DecisionTreeRegressor(),
-                "Gradient Boosting": GradientBoostingRegressor(),
-                "Linear Regression": LinearRegression(),
-                "XGBRegressor": XGBRegressor(),
-                "CatBoosting Regressor": CatBoostRegressor(verbose=False),
-                "AdaBoost Regressor": AdaBoostRegressor(),
-            }
-            params={
-                "Decision Tree": {
-                    'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                    # 'splitter':['best','random'],
-                    # 'max_features':['sqrt','log2'],
-                },
-                "Random Forest":{
-                    # 'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
-                 
-                    # 'max_features':['sqrt','log2',None],
-                    'n_estimators': [8,16,32,64,128,256]
-                },
-                "Gradient Boosting":{
-                    # 'loss':['squared_error', 'huber', 'absolute_error', 'quantile'],
-                    'learning_rate':[.1,.01,.05,.001],
-                    'subsample':[0.6,0.7,0.75,0.8,0.85,0.9],
-                    # 'criterion':['squared_error', 'friedman_mse'],
-                    # 'max_features':['auto','sqrt','log2'],
-                    'n_estimators': [8,16,32,64,128,256]
-                },
-                "Linear Regression":{},
-                "XGBRegressor":{
-                    'learning_rate':[.1,.01,.05,.001],
-                    'n_estimators': [8,16,32,64,128,256]
-                },
-                "CatBoosting Regressor":{
-                    'depth': [6,8,10],
-                    'learning_rate': [0.01, 0.05, 0.1],
-                    'iterations': [30, 50, 100]
-                },
-                "AdaBoost Regressor":{
-                    'learning_rate':[.1,.01,0.5,.001],
-                    # 'loss':['linear','square','exponential'],
-                    'n_estimators': [8,16,32,64,128,256]
-                }
-                
-            }
+            logging.info("Starting ResNet18 model training...")
+            self.model.train()
+            for epoch in range(self.config.num_epochs):
+                total_loss = 0.0
+                correct, total = 0, 0
 
-            model_report:dict=evaluate_models(X_train=X_train,y_train=y_train,X_test=X_test,y_test=y_test,
-                                             models=models,param=params)
-            
-            ## To get best model score from dict
-            best_model_score = max(sorted(model_report.values()))
+                for images, labels in train_loader:
+                    images, labels = images.to(self.config.device), labels.to(self.config.device)
+                    
+                    self.optimizer.zero_grad()
+                    outputs = self.model(images)
+                    loss = self.criterion(outputs, labels)
+                    loss.backward()
+                    self.optimizer.step()
+                    
+                    total_loss += loss.item()
+                    _, predicted = torch.max(outputs, 1)
+                    correct += (predicted == labels).sum().item()
+                    total += labels.size(0)
 
-            ## To get best model name from dict
+                epoch_loss = total_loss / len(train_loader)
+                epoch_acc = 100 * correct / total
+                logging.info(f"Epoch {epoch+1}/{self.config.num_epochs}, Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%")
 
-            best_model_name = list(model_report.keys())[
-                list(model_report.values()).index(best_model_score)
-            ]
-            best_model = models[best_model_name]
 
-            if best_model_score<0.6:
-                raise CustomException("No best model found")
-            logging.info(f"Best found model on both training and testing dataset")
-
-            save_object(
-                file_path=self.model_trainer_config.trained_model_file_path,
-                obj=best_model
-            )
-
-            predicted=best_model.predict(X_test)
-
-            r2_square = r2_score(y_test, predicted)
-            return r2_square
-            
+            model_report = evaluate_model(model=self.model, test_loader=test_loader, device=self.config.device)
 
 
 
-            
+
+            logging.info("Training complete. Saving model...")
+            torch.save(self.model.state_dict(), self.config.trained_model_file_path)
+#from save changed to save_object
         except Exception as e:
-            raise CustomException(e,sys)
+            raise CustomException(e, sys)
+
+    
