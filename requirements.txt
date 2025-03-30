@@ -5,8 +5,8 @@ dill
 matplotlib
 scikit-learn
 torch
-random
 torchvision
+Flask
 #-e .  #this is what connects to setup.py for mapping and installing all packages the command is in setup.py.
 #^remove comment when necessary.
 #to install all packages open terminal write: pip install -r requirements.txt
