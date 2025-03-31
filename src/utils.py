@@ -8,26 +8,38 @@ import pickle
 import logging
 from src.exception import CustomException
 from torch.utils.data import DataLoader
+import torchvision.models as models
 
-def save_object(file_path, obj):
+def save_object(obj, file_path):
     try:
-        dir_path = os.path.dirname(file_path)
-
-        os.makedirs(dir_path, exist_ok=True)
-
-        with open(file_path, "wb") as file_obj:
-            pickle.dump(obj, file_obj)
-
+        torch.save(obj.state_dict(), file_path)  # Save the state_dict of the model
+        print(f"Model saved to {file_path}")
     except Exception as e:
-        raise CustomException(e, sys)
-    
+        raise CustomException(f"Error saving object: {e}",sys)
 
 
-def evaluate_model(model, test_loader: DataLoader, device: str) -> dict: ##
+def save_transform_config(transform_config, file_path):
+    try:
+        with open(file_path, 'wb') as file:
+            pickle.dump(transform_config, file)
+        print(f"Transformation config saved to {file_path}")
+    except Exception as e:
+        raise CustomException(f"Error saving transformation config: {e}", sys)
+
+
+def load_transform_config(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            return pickle.load(file)
+    except Exception as e:
+        raise CustomException(f"Error loading transformation config: {e}",sys)
+
+
+def evaluate_model(model, test_loader: DataLoader, device: str) -> dict:
     """Evaluate the trained model on test data and return a report."""
     try:
-        logging.info("Evaluating ResNet18 model...")
-        model.eval()
+        logging.info("Evaluating model...")
+        model.eval()  # Set model to evaluation mode
         correct, total = 0, 0
             
         with torch.no_grad():
@@ -40,7 +52,35 @@ def evaluate_model(model, test_loader: DataLoader, device: str) -> dict: ##
 
         accuracy = 100 * correct / total
         logging.info(f"Test Accuracy: {accuracy:.2f}%")
-        return {"accuracy" : accuracy}  ##
+        return {"accuracy" : accuracy}
 
     except Exception as e:
         raise CustomException(e, sys)
+
+
+def load_object(file_path, is_model=False, architecture=None, num_classes=4):
+    try:
+        if is_model:
+            # Check if model architecture is provided
+            if architecture is None:
+                raise ValueError("Model architecture must be provided if is_model=True")
+            
+            # Create the model architecture instance
+            model = architecture()
+
+            # Modify the final fully connected layer to match the number of classes
+            in_features = model.fc.in_features  # Get the input features to the final layer
+            model.fc = torch.nn.Linear(in_features, num_classes)  # Adjust the number of classes
+
+            # Load the model weights
+            model.load_state_dict(torch.load(file_path, weights_only=True))
+            model.eval()  # Set to evaluation mode
+            return model
+        
+        else:
+            # Handle non-model object loading (e.g., configs)
+            with open(file_path, 'rb') as file:
+                return torch.load(file)
+    
+    except Exception as e:
+        raise CustomException(f"Error loading object from {file_path}: {str(e)}", sys)

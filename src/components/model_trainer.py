@@ -12,12 +12,10 @@ from src.utils import save_object, evaluate_model
 from src.components.data_transformation import DataTransformation
 
 
-#evaluate added
-#evaluate class moved to utils.py
 @dataclass
 class ModelTrainerConfig:
     trained_model_file_path: str = os.path.join("artifacts", "resnet18.pth")
-    num_epochs: int = 15
+    num_epochs: int = 1
     learning_rate: float = 0.001
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -60,16 +58,32 @@ class ModelTrainer:
                 epoch_acc = 100 * correct / total
                 logging.info(f"Epoch {epoch+1}/{self.config.num_epochs}, Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%")
 
-
+            # Evaluating the model after training
             model_report = evaluate_model(model=self.model, test_loader=test_loader, device=self.config.device)
 
+            # Log evaluation results
+            logging.info(f"Model Evaluation: {model_report}")
 
-
-
+            # Saving the trained model using the custom save_object function
             logging.info("Training complete. Saving model...")
-            torch.save(self.model.state_dict(), self.config.trained_model_file_path)
-#from save changed to save_object
+            save_object(self.model, self.config.trained_model_file_path)
+
         except Exception as e:
             raise CustomException(e, sys)
+
+    def load_trained_model(self):
+        """Load the trained model using the custom load_object function."""
+        try:
+            # Load the model architecture first
+            model = models.resnet18(pretrained=False)  # Set pretrained=False to avoid reloading weights
+            model.fc = nn.Linear(model.fc.in_features, 4)  # Adjust for the number of classes (4 in your case)
+
+            # Load the state_dict into the model
+            model = load_object(self.config.trained_model_file_path, is_model=True, model=model)
+            logging.info(f"Model loaded successfully from {self.config.trained_model_file_path}")
+            return model
+        except Exception as e:
+            raise CustomException(f"Error loading model: {e}", sys)
+
 
     
