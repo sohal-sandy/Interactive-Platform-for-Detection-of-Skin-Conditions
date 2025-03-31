@@ -15,7 +15,7 @@ from src.components.data_transformation import DataTransformation
 @dataclass
 class ModelTrainerConfig:
     trained_model_file_path: str = os.path.join("artifacts", "resnet18.pth")
-    num_epochs: int = 1
+    num_epochs: int = 20
     learning_rate: float = 0.001
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
 
