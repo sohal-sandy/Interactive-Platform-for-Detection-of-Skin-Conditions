@@ -82,6 +82,4 @@ def predict_img():
     return render_template('home.html')  # Render the home page to display the form
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
-
-    #in app.py debug=True
+    app.run(host="0.0.0.0", debug=True)
