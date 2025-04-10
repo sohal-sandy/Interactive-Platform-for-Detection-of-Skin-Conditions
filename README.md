@@ -1,2 +1,2 @@
 # Interactive-Platform-for-Detection-of-Skin-Conditions
-Currently developing an end-to-end web application to classify skin conditions using deep learning and machine learning models, expected to be complete by April 2025. The project leverages CNN-based models with transfer learning (such as ResNet50 and VGG-16) for accurate image classification on multiple skin datasets (DermNet, HAM10000, and ISIC Archive). It includes a FastAPI backend, and a Streamlit frontend for real-time predictions, with deployment on AWS using Docker for scalability.
+Worked on a Flask web-application that helps identify various skin conditions and containerized with Docker for scalability and deployed with AWS ECR and EC2. CI/CD pipeline will be integrated with GitHub Actions. 
